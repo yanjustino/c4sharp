@@ -135,29 +135,27 @@ namespace C4Sharp.Models.Plantuml.IO
             {
                 PlantumlJarPath ??= PlantumlResources.LoadPlantumlJar();
 
-                var results = new StringBuilder();
                 var fileName = Guid.NewGuid().ToString("N");
                 var standardLibraryBaseUrlArgs = StandardLibraryBaseUrl ? string.Empty : "-DRELATIVE_INCLUDE=\".\"";
-                var jar = $"-jar {PlantumlJarPath} {standardLibraryBaseUrlArgs} -Playout=smetana -verbose -charset UTF-8";
-                
-                ProcessInfo.Arguments = $"{jar} -pipe > {fileName}.png";
+                var jar = $"-jar \"{PlantumlJarPath}\" {standardLibraryBaseUrlArgs} -Playout=smetana -verbose -charset UTF-8 -pipe -tpng";
+
+                ProcessInfo.Arguments = jar;
                 ProcessInfo.RedirectStandardOutput = true;
                 ProcessInfo.RedirectStandardInput = true;
-                ProcessInfo.StandardOutputEncoding = Encoding.UTF8;
 
                 var process = new Process { StartInfo = ProcessInfo };
-
-                process.OutputDataReceived += (_, args) => { results.AppendLine(args.Data); };
 
                 process.Start();
                 process.StandardInput.Write(input);
                 process.StandardInput.Flush();
                 process.StandardInput.Close();
-                process.BeginOutputReadLine();
-                process.WaitForExit();
 
-                var buffer = Encoding.UTF8.GetBytes(results.ToString());
-                return (fileName, new MemoryStream(buffer));
+                var memoryStream = new MemoryStream();
+                process.StandardOutput.BaseStream.CopyTo(memoryStream);
+                process.WaitForExit();
+                memoryStream.Position = 0;
+
+                return (fileName, memoryStream);
             }
             catch (Exception e)
             {
